@@ -6,6 +6,8 @@ from app.models import Teacher, Student, Unit, Word, Result  # Импорт вс
 from app.forms import LoginForm
 from flask_wtf.csrf import CSRFError
 from security_controls.rate_limit import SlidingWindowLimiter
+from sqlalchemy.exc import SQLAlchemyError
+from app.vocabulary import parse_vocabulary
 
 login_attempts = SlidingWindowLimiter(limit=5, window_seconds=300)
 login_clients = SlidingWindowLimiter(limit=30, window_seconds=300)
@@ -98,30 +100,41 @@ def student_results(student_id):
 @app.route('/words', methods=['GET', 'POST'])
 @login_required
 def words():
+    unit_name_input = ''
+    words_input = ''
+    form_error = None
+    status = 200
     if request.method == 'POST':
-        unit_name = request.form['unit_name']
-        words_text = request.form['words']
-        new_unit = Unit(unit_name=unit_name)
-        db.session.add(new_unit)
-        db.session.commit()
-
-        # Добавление слов
-        words_list = words_text.splitlines()
-        for word in words_list:
-            english, russian = word.split(': ')
-            new_word = Word(unit_id=new_unit.unit_id, word=english.strip(), translation=russian.strip())
-            db.session.add(new_word)
-
-        db.session.commit()
-        flash('Unit and words added successfully!')
-        return redirect(url_for('words'))
+        unit_name_input = request.form.get('unit_name', '')
+        words_input = request.form.get('words', '')
+        try:
+            unit_name, entries = parse_vocabulary(unit_name_input, words_input)
+        except ValueError as error:
+            form_error = str(error)
+            status = 400
+        else:
+            new_unit = Unit(unit_name=unit_name)
+            new_unit.words = [Word(word=english, translation=translation)
+                              for english, translation in entries]
+            db.session.add(new_unit)
+            try:
+                db.session.commit()
+            except SQLAlchemyError as error:
+                db.session.rollback()
+                app.logger.error('Could not save vocabulary unit: %s', type(error).__name__)
+                form_error = 'The unit could not be saved. Please try again.'
+                status = 503
+            else:
+                flash('Unit and words added successfully!', 'success')
+                return redirect(url_for('words'))
     
     # Запрос для получения всех юнитов и связанных с ними слов
     units = Unit.query.all()
     for unit in units:
         unit.words = Word.query.filter_by(unit_id=unit.unit_id).all()
 
-    return render_template('words.html', units=units)
+    return render_template('words.html', units=units, form_error=form_error,
+                           unit_name_input=unit_name_input, words_input=words_input), status
 
 # Маршрут для редактирования студента
 @app.route('/edit_student/<int:student_id>', methods=['GET', 'POST'])

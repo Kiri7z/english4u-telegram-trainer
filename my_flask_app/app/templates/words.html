@@ -115,12 +115,31 @@
         .delete-button:hover {
             background-color: #e53935;
         }
+        .form-error {
+            padding: 12px;
+            border: 1px solid #c62828;
+            border-radius: 5px;
+            color: #c62828;
+        }
+        .flash-message {
+            padding: 12px;
+            border-radius: 5px;
+            background-color: #e8f5e9;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="{{ url_for('home') }}" class="home-icon"></a>
         <h1>Words</h1>
+        {% if form_error %}
+            <p class="form-error" role="alert">
+                {{ form_error }} <a href="#add-unit">Review your input</a>
+            </p>
+        {% endif %}
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="flash-message" role="status">{{ message }}</p>
+        {% endfor %}
         {% for unit in units %}
             <h2>{{ unit.unit_name }}
                 <a href="{{ url_for('edit_unit', unit_id=unit.unit_id) }}">
@@ -134,11 +153,12 @@
             </ul>
         {% endfor %}
         
-        <h2>Add New Unit and Words</h2>
+        <h2 id="add-unit">Add New Unit and Words</h2>
         <form method="POST" action="{{ url_for('words') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="text" name="unit_name" placeholder="Unit Name" required>
-            <textarea name="words" rows="10" placeholder="Words (Format: English: Translation, one per line)" required></textarea>
+            <input type="text" name="unit_name" placeholder="Unit Name" value="{{ unit_name_input }}" required>
+            <textarea name="words" rows="10" placeholder="Words (Format: English: Translation, one per line)" required>
+{{ words_input }}</textarea>
             <input type="submit" value="Add Unit and Words">
         </form>
     </div>
