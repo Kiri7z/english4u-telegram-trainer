@@ -1,0 +1,5 @@
+-- Очистка таблиц в правильном порядке, чтобы избежать нарушений внешних ключей
+TRUNCATE TABLE results RESTART IDENTITY CASCADE;
+TRUNCATE TABLE words RESTART IDENTITY CASCADE;
+TRUNCATE TABLE students RESTART IDENTITY CASCADE;
+TRUNCATE TABLE units RESTART IDENTITY CASCADE;

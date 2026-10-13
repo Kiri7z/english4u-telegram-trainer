@@ -1,0 +1,84 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f8f8;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 90%;
+    max-width: 600px; /* Максимальная ширина для десктопов */
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h1, h2, h3 {
+    color: #333;
+    text-align: center;
+}
+
+a {
+    color: #4CAF50;
+    text-decoration: none;
+    display: inline-block;
+    margin: 5px 0;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+input[type="text"], input[type="password"] {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.home-icon {
+    position: absolute; /* Позиционируем значок */
+    top: 10px;
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+}
+
+@media (max-width: 600px) {
+    .container {
+        width: 100%; /* Увеличиваем ширину на мобильных устройствах */
+        padding: 10px;
+        margin-top: 20px; /* Добавляем отступ сверху */
+    }
+
+    button {
+        width: 100%; /* Кнопка занимает всю ширину на маленьких экранах */
+    }
+
+    input[type="text"], input[type="password"] {
+        width: 100%; /* Поля ввода занимают всю ширину */
+    }
+}

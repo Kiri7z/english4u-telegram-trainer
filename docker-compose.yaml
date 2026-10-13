@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-teacherdb}
+      WEB_DB_PASSWORD: ${WEB_DB_PASSWORD:?Set WEB_DB_PASSWORD}
+      BOT_DB_PASSWORD: ${BOT_DB_PASSWORD:?Set BOT_DB_PASSWORD}
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+      - ./scripts_sql/init.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
+      - ./scripts_sql/init_app_roles.sh:/docker-entrypoint-initdb.d/10-app-roles.sh:ro
+      - ./scripts_sql:/scripts_sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - eng4u_network
+
+  web_teacher_panel:
+    build:
+      context: .
+      dockerfile: my_flask_app/dockerfile
+    restart: unless-stopped
+    container_name: web_teacher_panel
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${POSTGRES_DB:-teacherdb}
+      DB_USER: english4u_web
+      DB_PASSWORD: ${WEB_DB_PASSWORD:?Set WEB_DB_PASSWORD}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:?Set FLASK_SECRET_KEY}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-}
+      PROXY_HOPS: ${PROXY_HOPS:-0}
+    networks:
+      - eng4u_network
+
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: telegram_bot/dockerfile
+    restart: unless-stopped
+    container_name: telegram_bot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${POSTGRES_DB:-teacherdb}
+      DB_USER: english4u_bot
+      DB_PASSWORD: ${BOT_DB_PASSWORD:?Set BOT_DB_PASSWORD}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:?Set TELEGRAM_TOKEN}
+    networks:
+      - eng4u_network
+
+networks:
+  eng4u_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.30.32.0/28"

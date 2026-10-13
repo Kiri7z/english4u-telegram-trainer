@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    <title>Words</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow-y: auto;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 500px;
+            margin-top: 20px;
+            position: relative;
+        }
+        .home-icon {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #4CAF50;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        .home-icon::before {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 16px solid #4CAF50;
+            position: absolute;
+            top: 5px;
+        }
+        .home-icon::after {
+            content: '';
+            display: block;
+            width: 14px;
+            height: 14px;
+            background-color: #4CAF50;
+            position: absolute;
+            bottom: 5px;
+            border-radius: 2px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #4CAF50;
+        }
+        ul {
+            padding: 0;
+            list-style-type: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        li {
+            margin: 5px 0;
+        }
+        form {
+            margin-top: 20px;
+        }
+        input[type="text"], textarea, input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        .edit-icon {
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            font-size: 16px;
+            margin-top: 20px;
+            padding: 10px 20px;
+        }
+        .delete-button:hover {
+            background-color: #e53935;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="home-icon"></a>
+        <h1>Words</h1>
+        {% for unit in units %}
+            <h2>{{ unit.unit_name }}
+                <a href="{{ url_for('edit_unit', unit_id=unit.unit_id) }}">
+                    <span class="edit-icon">🖊</span> <!-- Иконка редактирования -->
+                </a>
+            </h2>
+            <ul>
+                {% for word in unit.words %}
+                    <li>{{ word.word }} - {{ word.translation }}</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+        
+        <h2>Add New Unit and Words</h2>
+        <form method="POST" action="{{ url_for('words') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="unit_name" placeholder="Unit Name" required>
+            <textarea name="words" rows="10" placeholder="Words (Format: English: Translation, one per line)" required></textarea>
+            <input type="submit" value="Add Unit and Words">
+        </form>
+    </div>
+</body>
+</html>

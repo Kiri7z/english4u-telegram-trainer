@@ -1,0 +1,16 @@
+postgres/
+postgress/
+.env
+.env.*
+!.env.example
+secrets/
+backups/
+*.dump
+*.sql.gz
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.DS_Store
+._*
+.security-candidate/

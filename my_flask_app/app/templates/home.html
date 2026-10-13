@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    <title>Welcome to the Teacher App</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Размещаем элементы сверху */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow-y: auto; /* Включаем вертикальный скроллинг */
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
+            margin-top: 20px; /* Отступ сверху */
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        a, .logout-button {
+            display: block;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+        .logout-button {
+            border: 0;
+            width: 100%;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        a:hover, .logout-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the Teacher App</h1>
+        <a href="{{ url_for('students') }}">Students</a>
+        <a href="{{ url_for('words') }}">Words</a>
+        <form method="POST" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="logout-button">Logout</button>
+        </form>
+    </div>
+</body>
+</html>

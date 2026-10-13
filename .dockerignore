@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+postgres
+postgress
+secrets
+backups
+*.dump
+*.sql.gz
+**/__pycache__
+**/*.pyc
+.venv
+.security-candidate
+.DS_Store
+**/._*
+docs
+tests

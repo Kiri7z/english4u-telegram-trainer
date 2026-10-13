@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    <title>Students</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow-y: auto;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 500px;
+            margin-top: 20px;
+            position: relative;
+        }
+        .home-icon {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #4CAF50;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        .home-icon::before {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 16px solid #4CAF50;
+            position: absolute;
+            top: 5px;
+        }
+        .home-icon::after {
+            content: '';
+            display: block;
+            width: 14px;
+            height: 14px;
+            background-color: #4CAF50;
+            position: absolute;
+            bottom: 5px;
+            border-radius: 2px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        ul {
+            padding: 0;
+            list-style-type: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        li {
+            margin: 10px 0;
+            display: flex; /* Используем Flexbox для выравнивания */
+            align-items: center; /* Центрируем элементы по вертикали */
+        }
+        .student-info {
+            margin-right: 10px; /* Добавляем отступ между именем и иконкой */
+        }
+        .edit-icon {
+            margin-left: 10px; /* Отступ для иконки редактирования */
+            cursor: pointer; /* Указатель мыши на иконке */
+            font-size: 18px; /* Размер иконки */
+        }
+        form {
+            margin-top: 20px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            font-size: 16px;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        button.generate-button {
+            padding: 10px;
+            background-color: #007BFF; /* Синий фон */
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px; /* Скругленная форма */
+            width: calc(50% - 20px); /* Делаем кнопку продолговатой */
+            margin-top: 5px;
+            font-size: 16px;
+        }
+        button.generate-button:hover {
+            background-color: #0056b3;
+        }
+        a {
+            text-decoration: none;
+            color: #4CAF50;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .form-group {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Пробел между полем токена и кнопкой */
+        }
+        #token {
+            width: calc(50% - 20px); /* Уменьшение ширины поля токена */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="home-icon"></a>
+        <h1>Students</h1>
+        <ul>
+            {% for student in students %}
+                <li>
+                    <span class="student-info">
+                        <a href="{{ url_for('student_results', student_id=student.student_id) }}">{{ student.name }}</a> - {{ student.token }}
+                    </span>
+                    <a href="{{ url_for('edit_student', student_id=student.student_id) }}" class="edit-icon">
+                        &#128394; <!-- Используем эмодзи 🖊 -->
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <h2>Add New Student</h2>
+        <form method="POST" action="{{ url_for('students') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="name" placeholder="Name" required>
+            <div class="form-group">
+                <input type="text" id="token" name="token" placeholder="Token" required>
+                <button type="button" class="generate-button" onclick="generateToken()">Generate Token</button>
+            </div>
+            <input type="submit" value="Add Student">
+        </form>
+    </div>
+
+    <script>
+        function generateToken() {
+            let token = Math.random().toString(36).substring(2, 12);  // Генерация 10-символьного токена
+            document.getElementById('token').value = token;  // Устанавливаем сгенерированный токен в поле
+        }
+    </script>
+</body>
+</html>

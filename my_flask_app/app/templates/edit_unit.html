@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    <title>Edit Unit</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow-y: auto;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 600px;
+            margin-top: 20px;
+            position: relative;
+        }
+        .home-icon {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #4CAF50;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        .home-icon::before {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 16px solid #4CAF50;
+            position: absolute;
+            top: 5px;
+        }
+        .home-icon::after {
+            content: '';
+            display: block;
+            width: 14px;
+            height: 14px;
+            background-color: #4CAF50;
+            position: absolute;
+            bottom: 5px;
+            border-radius: 2px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .words-container {
+            max-height: 300px; /* Ограничение высоты */
+            overflow-y: auto; /* Скроллинг для слов */
+            margin-bottom: 20px; /* Отступ снизу */
+            padding-right: 10px; /* Отступ справа для скроллбара */
+        }
+        .word-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .word-input {
+            width: 48%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .button-container button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .save-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .save-button:hover {
+            background-color: #45a049;
+        }
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+        .delete-button:hover {
+            background-color: #e53935;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="home-icon"></a>
+        <h1>Edit Unit</h1>
+        <form method="POST" action="{{ url_for('edit_unit', unit_id=unit.unit_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- Input для названия юнита -->
+            <input type="text" name="unit_name" value="{{ unit.unit_name }}" required>
+
+            <!-- Контейнер для слов с ограниченной высотой и скроллингом -->
+            <div class="words-container">
+                {% for word in words %}
+                    <div class="word-container">
+                        <input type="text" class="word-input" name="word_{{ word.word_id }}" value="{{ word.word }}" required>
+                        <input type="text" class="word-input" name="translation_{{ word.word_id }}" value="{{ word.translation }}" required>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="button-container">
+                <!-- Кнопка сохранения изменений -->
+                <button type="submit" class="save-button">Save Changes</button>
+
+                <!-- Кнопка удаления юнита -->
+                <button type="submit" formaction="{{ url_for('delete_unit', unit_id=unit.unit_id) }}" class="delete-button">Delete Unit</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+name: Security checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan secrets
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --log-opts=--all --redact=100
+  dependencies-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r my_flask_app/requirements.txt -r telegram_bot/requirements.txt pip-audit
+      - run: pip check
+      - run: python -m unittest discover -s tests -v
+      - run: pip-audit --disable-pip --no-deps -r my_flask_app/requirements.txt -r telegram_bot/requirements.txt

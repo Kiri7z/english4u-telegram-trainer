@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    <title>Edit Student</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow-y: auto;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 500px;
+            margin-top: 20px;
+            position: relative;
+        }
+        .home-icon {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #4CAF50;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        .home-icon::before {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 16px solid #4CAF50;
+            position: absolute;
+            top: 5px;
+        }
+        .home-icon::after {
+            content: '';
+            display: block;
+            width: 14px;
+            height: 14px;
+            background-color: #4CAF50;
+            position: absolute;
+            bottom: 5px;
+            border-radius: 2px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        input[type="text"], button {
+            padding: 10px;
+            margin: 10px 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100%;
+            max-width: 300px;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 10px; /* Изменено расстояние между кнопками */
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            padding: 10px;
+            width: 48%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .delete-button {
+            background-color: #f44336; /* Красный цвет */
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            padding: 10px;
+            width: 48%;
+        }
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #4CAF50;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="home-icon"></a> <!-- Домик добавлен -->
+        <h1>Edit Student</h1>
+        <form method="POST" action="{{ url_for('edit_student', student_id=student.student_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="name" value="{{ student.name }}" required>
+            <input type="text" name="token" value="{{ student.token }}" required>
+            <div class="button-container">
+                <button type="submit">Save Changes</button>
+                <button type="submit" class="delete-button" formaction="{{ url_for('delete_student', student_id=student.student_id) }}">Delete Student</button>
+            </div>
+        </form>
+        <a href="{{ url_for('students') }}" class="back-link">Back to Students</a> <!-- Ссылка для возврата к студентам -->
+    </div>
+</body>
+</html>
