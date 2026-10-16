@@ -97,6 +97,22 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(session.get(Student, 1).telegram_user_id, 100)
         self.assertFalse(self.context.user_data["awaiting_token"])
 
+    async def test_new_sixteen_character_code_preserves_existing_code_and_binding(self):
+        code = '00010f107f80feff'
+        with self.sessions() as session:
+            session.add(Student(student_id=2, name='New example', token=code))
+            session.commit()
+        self.message.from_user.id = 200
+        self.message.text = code
+        self.context.user_data['awaiting_token'] = True
+        await authorization.check_token(self.update, self.context)
+        with self.sessions() as session:
+            existing = session.get(Student, 1)
+            self.assertEqual((existing.token, existing.telegram_user_id), ('test-code', 100))
+            self.assertEqual(session.get(Student, 2).telegram_user_id, 200)
+            result = session.query(Result).filter_by(student_id=1).one()
+            self.assertEqual((result.requests, result.answers), (15, 10))
+
     async def test_token_attempts_are_limited_and_recover(self):
         with self.sessions() as session:
             session.get(Student, 1).telegram_user_id = None

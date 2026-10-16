@@ -157,6 +157,20 @@ class WebSecurityTests(unittest.TestCase):
         with app.app_context():
             self.assertEqual(db.session.get(Unit, 2).unit_name, 'Edited unit')
 
+    def test_new_sixteen_character_code_keeps_existing_student_code(self):
+        self.sign_in()
+        code = '00010f107f80feff'
+        response = self.client.post('/students', data={'csrf_token': self.token('/students'),
+            'name': 'New demo', 'token': code})
+        self.assertEqual(response.status_code, 302)
+        with app.app_context():
+            existing = db.session.get(Student, 1)
+            self.assertEqual((existing.name, existing.token), ('Demo Student', 'demo-code'))
+            self.assertEqual(Student.query.filter_by(name='New demo').one().token, code)
+        page = self.client.get('/students').get_data(as_text=True)
+        self.assertIn('demo-code', page)
+        self.assertIn(code, page)
+
     def test_vocabulary_accepts_spaces_blank_lines_and_colons_in_translation(self):
         self.sign_in()
         response = self.submit_vocabulary('  Animals  ',

@@ -171,7 +171,8 @@
 
     <script>
         function generateToken() {
-            let token = Math.random().toString(36).substring(2, 12);  // Генерация 10-символьного токена
+            const bytes = crypto.getRandomValues(new Uint8Array(8));
+            const token = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
             document.getElementById('token').value = token;  // Устанавливаем сгенерированный токен в поле
         }
     </script>

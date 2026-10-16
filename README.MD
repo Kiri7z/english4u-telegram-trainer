@@ -104,6 +104,14 @@ python -m unittest discover -s tests -v
 
 Tests use in-memory SQLite and mocked Telegram messages; they do not contact Telegram or a production database. GitHub Actions runs regression tests, scans reachable Git history for secrets and audits pinned Python dependencies.
 
+With Node.js 24, also run the student-code generator checks:
+
+```sh
+node --test tests/test_student_codes.js
+```
+
+The panel generates new 16-character hexadecimal access codes with Web Crypto. Existing student codes and Telegram bindings remain valid.
+
 The next work is tracked in the [roadmap](docs/roadmap.md). Changes use focused branches and pull requests; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
