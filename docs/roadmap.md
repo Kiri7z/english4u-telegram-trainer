@@ -6,7 +6,6 @@ Vocabulary management, student authorization, translation practice and saved res
 
 - Improve validation and useful errors when editing existing vocabulary.
 - Improve the teacher's overview of units and student progress.
-- Make authorization reset during an active game predictable and clear.
 - Add end-to-end checks against temporary PostgreSQL alongside fast SQLite tests.
 
 ## Later
@@ -24,5 +23,6 @@ Vocabulary management, student authorization, translation practice and saved res
 - Added global CSRF protection, protected logout, authentication limits and configurable HTTPS sessions.
 - Added regression tests, security checks and documentation with real app screenshots.
 - Validated complete vocabulary imports before saving, preserved input on errors, and saved units and words in one transaction.
+- Cleared active games and selected units on authorization reset, while preserving student records, learning results and attempt limits.
 
 Track the next task in a focused GitHub issue, implement it on a branch and describe the resulting behavior and checks in a pull request.

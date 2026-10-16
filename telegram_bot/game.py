@@ -113,9 +113,16 @@ async def check_answer(update: Update, context: CallbackContext) -> None:
         session.close()
         return
 
+    student = session.query(Student).filter_by(telegram_user_id=user_id).first()
+    if student is None:
+        game_state.pop(user_id, None)
+        context.user_data.pop('selected_unit', None)
+        session.close()
+        await update.message.reply_text("You are not authorized. Please use /start to log in.")
+        return
+
     state = game_state[user_id]
     current_word = state['current_word']
-    student = session.query(Student).filter_by(telegram_user_id=user_id).first()
 
     # Форматируем ответ пользователя и слово из БД для сравнения
     user_answer = update.message.text.strip().lower()

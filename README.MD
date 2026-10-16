@@ -91,7 +91,7 @@ The SQL contains vocabulary only, with no students or access codes. For HTTPS, p
 | `/run` | Practise the selected unit; its Run button does the same. |
 | `/words` | Show the active unit without interrupting the question. |
 | `/stop` | Stop the current game. |
-| `/reset` | Remove your Telegram binding and enter an access code again. |
+| `/reset` | End the current game, clear its selected unit and remove your Telegram binding; learning results stay saved. |
 
 ## Development and checks
 

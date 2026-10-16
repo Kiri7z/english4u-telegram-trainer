@@ -127,6 +127,110 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         await game.stop_game(self.update, self.context)
         self.assertNotIn(100, game.game_state)
 
+    async def test_reset_ends_game_and_preserves_student_and_results(self):
+        await game.run_current_game(self.update, self.context)
+        other_game = {'unit_id': 2}
+        game.game_state[200] = other_game
+        await authorization.reset_authorization(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+        self.assertIs(game.game_state[200], other_game)
+        self.assertNotIn('selected_unit', self.context.user_data)
+        self.assertTrue(self.context.user_data['awaiting_token'])
+        self.assertIn(100, authorization.awaiting_token_users)
+        self.assertFalse(game.in_game_filter.filter(self.message))
+        with self.sessions() as session:
+            student = session.get(Student, 1)
+            self.assertEqual((student.name, student.token), ('Example', 'test-code'))
+            self.assertIsNone(student.telegram_user_id)
+            result = session.query(Result).one()
+            self.assertEqual((result.requests, result.answers), (15, 10))
+            self.assertEqual(session.query(Student).count(), 1)
+
+    async def test_reset_clears_stale_game_for_unbound_user(self):
+        await game.run_current_game(self.update, self.context)
+        with self.sessions() as session:
+            session.get(Student, 1).telegram_user_id = None
+            session.commit()
+        await authorization.reset_authorization(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+        self.assertNotIn('selected_unit', self.context.user_data)
+        self.assertTrue(self.context.user_data['awaiting_token'])
+        self.assertIn(100, authorization.awaiting_token_users)
+        with self.sessions() as session:
+            self.assertEqual(session.query(Student).count(), 1)
+            self.assertEqual(session.query(Result).count(), 1)
+
+    async def test_answer_after_binding_removed_stops_game_without_writes(self):
+        await game.run_current_game(self.update, self.context)
+        with self.sessions() as session:
+            session.get(Student, 1).telegram_user_id = None
+            session.commit()
+        await game.check_answer(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+        self.assertNotIn('selected_unit', self.context.user_data)
+        self.assertIn('/start', self.message.reply_text.call_args.args[0])
+        with self.sessions() as session:
+            result = session.query(Result).one()
+            self.assertEqual((result.requests, result.answers), (15, 10))
+        self.message.reply_text.reset_mock()
+        await game.check_answer(self.update, self.context)
+        self.message.reply_text.assert_not_awaited()
+
+    async def test_answer_after_student_deleted_stops_game(self):
+        await game.run_current_game(self.update, self.context)
+        with self.sessions() as session:
+            session.query(Result).filter_by(student_id=1).delete()
+            session.delete(session.get(Student, 1))
+            session.commit()
+        await game.check_answer(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+        self.assertNotIn('selected_unit', self.context.user_data)
+        self.assertIn('/start', self.message.reply_text.call_args.args[0])
+        with self.sessions() as session:
+            self.assertEqual(session.query(Result).count(), 0)
+
+    async def test_authorizing_another_student_does_not_resume_previous_game(self):
+        with self.sessions() as session:
+            session.add(Student(student_id=2, name='Second example', token='second-test-code'))
+            session.commit()
+        await game.run_current_game(self.update, self.context)
+        await authorization.reset_authorization(self.update, self.context)
+        self.message.text = 'second-test-code'
+        await authorization.check_token(self.update, self.context)
+        self.assertFalse(self.context.user_data['awaiting_token'])
+        self.assertNotIn(100, game.game_state)
+        self.assertNotIn('selected_unit', self.context.user_data)
+        self.message.reply_text.reset_mock()
+        self.message.text = 'hello'
+        await game.check_answer(self.update, self.context)
+        self.message.reply_text.assert_not_awaited()
+        with self.sessions() as session:
+            self.assertIsNone(session.get(Student, 1).telegram_user_id)
+            self.assertEqual(session.get(Student, 2).telegram_user_id, 100)
+            self.assertEqual(session.query(Result).filter_by(student_id=2).count(), 0)
+            self.assertEqual(session.query(Result).filter_by(student_id=1).one().answers, 10)
+
+    async def test_reset_of_bound_student_keeps_authorization_attempt_limit(self):
+        await game.run_current_game(self.update, self.context)
+        for _ in range(5):
+            self.assertEqual(authorization.token_attempts.consume(100), 0)
+        await authorization.reset_authorization(self.update, self.context)
+        self.message.text = 'test-code'
+        await authorization.check_token(self.update, self.context)
+        self.assertIn('Too many authorization attempts', self.message.reply_text.call_args.args[0])
+        with self.sessions() as session:
+            self.assertIsNone(session.get(Student, 1).telegram_user_id)
+        self.now[0] += 300
+        await authorization.check_token(self.update, self.context)
+        with self.sessions() as session:
+            self.assertEqual(session.get(Student, 1).telegram_user_id, 100)
+        self.assertNotIn('selected_unit', self.context.user_data)
+        await game.run_current_game(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+        self.context.user_data['selected_unit'] = 1
+        await game.run_current_game(self.update, self.context)
+        self.assertIn(100, game.game_state)
+
     def test_all_registered_callbacks_are_async(self):
         application = bot.build_application()
         for handlers in application.handlers.values():

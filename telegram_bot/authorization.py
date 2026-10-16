@@ -83,24 +83,24 @@ async def check_token(update: Update, context: CallbackContext) -> None:
     session.close()
 
 async def reset_authorization(update: Update, context: CallbackContext) -> None:
+    from game import game_state
+
     user_id = update.message.from_user.id
-    session = Session()
+    game_state.pop(user_id, None)
+    context.user_data.pop('selected_unit', None)
 
-    student = session.query(Student).filter_by(telegram_user_id=user_id).first()
-    if student:
-        student.telegram_user_id = None
-        session.commit()
-        await update.message.reply_text("Token reset. Please enter a new token.")
-        # Устанавливаем флаг ожидания токена
-        context.user_data['awaiting_token'] = True
-        awaiting_token_users.add(user_id)
-    else:
-        await update.message.reply_text("You have not logged in yet.")
-        # Опционально, можем установить флаг ожидания токена
-        context.user_data['awaiting_token'] = True
-        awaiting_token_users.add(user_id)
+    with Session() as session:
+        student = session.query(Student).filter_by(telegram_user_id=user_id).first()
+        if student:
+            student.telegram_user_id = None
+            session.commit()
+            message = "Token reset. Please enter a new token."
+        else:
+            message = "You have not logged in yet. Please enter a token."
 
-    session.close()
+    context.user_data['awaiting_token'] = True
+    awaiting_token_users.add(user_id)
+    await update.message.reply_text(message)
 
 # Пользовательский фильтр для ожидания токена
 class AwaitingTokenFilter(filters.MessageFilter):
