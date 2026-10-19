@@ -63,6 +63,136 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             item.stop()
         self.engine.dispose()
 
+    def add_practice_words(self, count):
+        with self.sessions() as session:
+            session.add_all(Word(word_id=3 + i, unit_id=1,
+                word=f'word{i}', translation=f'translation{i}') for i in range(count))
+            session.commit()
+
+    async def test_shuffled_rounds_cover_every_remaining_word_once(self):
+        self.add_practice_words(9)
+        expected = set(range(2, 12))
+        shown = []
+        with patch.object(game.random, 'shuffle', side_effect=game.random.Random(42).shuffle):
+            await game.run_current_game(self.update, self.context)
+            for _ in range(30):
+                shown.append(game.game_state[100]['current_word'].word_id)
+                self.message.text = 'incorrect-test-answer'
+                await game.check_answer(self.update, self.context)
+        for start in (0, 10, 20):
+            self.assertEqual(set(shown[start:start + 10]), expected)
+        shown.append(game.game_state[100]['current_word'].word_id)
+        self.assertTrue(all(a != b for a, b in zip(shown, shown[1:])))
+        with self.sessions() as session:
+            results = session.query(Result).filter(Result.word_id.in_(expected)).all()
+            self.assertEqual(sum(result.requests for result in results), 30)
+            self.assertEqual(sum(result.answers for result in results), 0)
+            mastered = session.query(Result).filter_by(word_id=1).one()
+            self.assertEqual((mastered.requests, mastered.answers), (15, 10))
+
+    async def test_round_boundary_does_not_repeat_the_previous_word(self):
+        self.add_practice_words(1)
+        reverse_order = iter((False, True))
+        def shuffle(queue):
+            queue.sort(key=lambda word: word.word_id, reverse=next(reverse_order))
+        shown = []
+        with patch.object(game.random, 'shuffle', side_effect=shuffle):
+            await game.run_current_game(self.update, self.context)
+            shown.append(game.game_state[100]['current_word'].word_id)
+            for _ in range(2):
+                self.message.text = 'incorrect-test-answer'
+                await game.check_answer(self.update, self.context)
+                shown.append(game.game_state[100]['current_word'].word_id)
+        self.assertEqual(shown, [3, 2, 3])
+
+    async def test_mastered_word_leaves_future_rounds(self):
+        self.add_practice_words(1)
+        with self.sessions() as session:
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=9, answers=9))
+            session.commit()
+        with patch.object(game.random, 'shuffle',
+                          side_effect=lambda queue: queue.sort(key=lambda word: -word.word_id)):
+            await game.run_current_game(self.update, self.context)
+            self.assertEqual(game.game_state[100]['current_word'].word_id, 2)
+            self.message.text = 'hello'
+            await game.check_answer(self.update, self.context)
+            self.assertEqual([word.word_id for word in game.game_state[100]['words']], [3])
+            self.assertEqual(game.game_state[100]['current_word'].word_id, 3)
+            self.message.text = 'incorrect-test-answer'
+            await game.check_answer(self.update, self.context)
+            self.assertEqual(game.game_state[100]['current_word'].word_id, 3)
+        with self.sessions() as session:
+            mastered = session.query(Result).filter_by(word_id=2).one()
+            self.assertEqual((mastered.requests, mastered.answers), (10, 10))
+
+    async def test_mastering_last_word_ends_game_and_removes_queue(self):
+        with self.sessions() as session:
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=9, answers=9))
+            session.commit()
+        await game.run_current_game(self.update, self.context)
+        self.message.text = 'hello'
+        await game.check_answer(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+        self.assertIn('mastered all words', self.message.reply_text.call_args.args[0])
+
+    async def test_single_remaining_word_repeats_with_bounded_queue(self):
+        await game.run_current_game(self.update, self.context)
+        for _ in range(4):
+            self.assertEqual(game.game_state[100]['current_word'].word_id, 2)
+            self.assertEqual(game.game_state[100]['round_queue'], [])
+            self.message.text = 'incorrect-test-answer'
+            await game.check_answer(self.update, self.context)
+        with self.sessions() as session:
+            result = session.query(Result).filter_by(word_id=2).one()
+            self.assertEqual((result.requests, result.answers), (4, 0))
+
+    async def test_new_run_replaces_round_and_preserves_saved_progress(self):
+        self.add_practice_words(9)
+        await game.run_current_game(self.update, self.context)
+        self.message.text = 'incorrect-test-answer'
+        await game.check_answer(self.update, self.context)
+        previous = game.game_state[100]
+        previous_queue = list(previous['round_queue'])
+        await game.run_current_game(self.update, self.context)
+        current = game.game_state[100]
+        self.assertIsNot(current, previous)
+        self.assertIsNot(current['round_queue'], previous['round_queue'])
+        self.assertEqual(previous['round_queue'], previous_queue)
+        self.assertEqual(len(current['round_queue']), 9)
+        self.assertEqual({word.word_id for word in current['round_queue']} |
+                         {current['current_word'].word_id}, set(range(2, 12)))
+        with self.sessions() as session:
+            self.assertEqual(sum(result.requests for result in session.query(Result)
+                                 .filter(Result.word_id != 1)), 1)
+
+    async def test_round_queues_are_isolated_between_students(self):
+        self.add_practice_words(2)
+        with self.sessions() as session:
+            session.add(Student(student_id=2, name='Second example', token='second-code',
+                                telegram_user_id=200))
+            session.commit()
+        await game.run_current_game(self.update, self.context)
+        other_message = SimpleNamespace(reply_text=AsyncMock(), from_user=SimpleNamespace(id=200))
+        other_query = SimpleNamespace(message=other_message, from_user=other_message.from_user)
+        await game.start_game(other_query, SimpleNamespace(user_data={}), 1)
+        other = game.game_state[200]
+        other_queue = list(other['round_queue'])
+        other_question = other['current_word']
+        self.message.text = 'incorrect-test-answer'
+        await game.check_answer(self.update, self.context)
+        self.assertEqual(other['round_queue'], other_queue)
+        self.assertIs(other['current_word'], other_question)
+        with self.sessions() as session:
+            self.assertEqual(session.query(Result).filter_by(student_id=2).count(), 0)
+
+    async def test_empty_unit_does_not_create_game_or_queue(self):
+        with self.sessions() as session:
+            session.add(Unit(unit_id=2, unit_name='Empty unit'))
+            session.commit()
+        self.context.user_data['selected_unit'] = 2
+        await game.run_current_game(self.update, self.context)
+        self.assertNotIn(100, game.game_state)
+
     async def test_game_skips_mastered_words_and_records_answers(self):
         await game.start_game(self.query, self.context, 1)
         self.assertEqual(game.game_state[100]["current_word"].word_id, 2)
@@ -72,10 +202,13 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((result.requests, result.answers), (1, 1))
 
     async def test_words_command_preserves_current_question(self):
+        self.add_practice_words(2)
         await game.start_game(self.query, self.context, 1)
         question = game.game_state[100]["current_word"]
+        queue = list(game.game_state[100]['round_queue'])
         await words.show_current_words(self.update, self.context)
         self.assertIs(game.game_state[100]["current_word"], question)
+        self.assertEqual(game.game_state[100]['round_queue'], queue)
         self.assertIn("Back to the game", self.message.reply_text.call_args.args[0])
 
     async def test_known_code_cannot_rebind_another_telegram_account(self):

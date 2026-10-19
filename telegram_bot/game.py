@@ -75,6 +75,7 @@ async def start_game(query, context: CallbackContext, unit_id) -> None:
     game_state[user_id] = {
         'unit_id': unit_id,
         'words': words,
+        'round_queue': [],
         'current_word': None
     }
 
@@ -97,8 +98,16 @@ async def ask_next_word(query, context: CallbackContext) -> None:
         await query.message.reply_text("No more words to practice. You can /stop the game.")
         return
 
-    # Выбираем случайное слово
-    word = random.choice(words)
+    # Each remaining word appears once per shuffled round.
+    queue = state['round_queue']
+    if not queue:
+        queue.extend(words)
+        random.shuffle(queue)
+        previous = state['current_word']
+        if len(queue) > 1 and previous and queue[-1].word_id == previous.word_id:
+            queue[0], queue[-1] = queue[-1], queue[0]
+
+    word = queue.pop()
     state['current_word'] = word
 
     # Спрашиваем пользователя

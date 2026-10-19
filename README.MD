@@ -11,6 +11,7 @@ A Telegram vocabulary trainer with a small teacher panel built with Flask and Po
 - Teachers create students, manage units and English/Russian vocabulary, and review results.
 - Students enter an access code in Telegram, choose a unit, and practise translation into English.
 - Incorrect answers show the correct word. Correct answers build progress.
+- Practice covers every remaining word once per shuffled round, avoiding consecutive repeats while alternatives remain.
 - A word is mastered after **at least 10 correct answers and at least 2/3 accuracy** and then leaves the practice queue.
 - `/words` shows vocabulary and progress without losing the current question. `/stop` ends the game.
 - Learning results are stored in PostgreSQL; the current question is held in memory.

@@ -4,16 +4,16 @@ Vocabulary management, student authorization, translation practice and saved res
 
 ## Next: practice and progress
 
-These four improvements are proposals. Before implementing each item, agree on its behavior with the owner and obtain explicit confirmation. The first two dates below are design reviews, not automatic releases. Implementation, tests, server deployment and publication follow only after that confirmation.
+Items still planned below require agreement on their behavior and explicit confirmation from the owner before implementation. Review dates are for design discussions, not automatic releases. Implementation, tests, server deployment and publication follow only after that confirmation.
 
 ### 1. Avoid consecutive repeated words
 
-Design review: **19 October 2026**.
+Completed after approval: **19 October 2026**.
 
-- Prevent the same word appearing several times in a row when at least two words still need practice.
-- Review a shuffled rotation of the remaining words, compared with simply excluding the previous word. A rotation would show every eligible word before starting another round and avoid a repeat across round boundaries when possible.
-- Handle the single remaining word explicitly: repetition is unavoidable until it is mastered.
-- Preserve saved results, mastery rules, and the current question when viewing vocabulary. Agree on the algorithm before changing the game.
+- Each remaining word appears once per shuffled round. A fresh round avoids repeating the previous word when alternatives exist.
+- Mastered words leave future rounds; a single remaining word can repeat until mastered.
+- The queue belongs to the current in-memory game. A new `/run` replaces it, while `/stop`, `/reset` and game completion remove it. Saved results and mastery rules stay unchanged; `/words` preserves the question and queue.
+- Abandoned games retain their existing lifetime until stopped, reset or the bot restarts; automatic expiration is a separate, unimplemented feature.
 
 ### 2. Show unit progress in the unit list
 
@@ -64,5 +64,6 @@ Not scheduled; depends on agreeing the statistics display in item 3.
 - Validated complete vocabulary imports before saving, preserved input on errors, and saved units and words in one transaction.
 - Cleared active games and selected units on authorization reset, while preserving student records, learning results and attempt limits.
 - Used Web Crypto for new student access codes, preserving existing codes and bindings.
+- Served practice words in shuffled rounds without consecutive repeats while alternatives remain.
 
 Track the next task in a focused GitHub issue, implement it on a branch and describe the resulting behavior and checks in a pull request.
