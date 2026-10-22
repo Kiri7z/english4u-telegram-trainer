@@ -17,12 +17,12 @@ Completed after approval: **19 October 2026**.
 
 ### 2. Show unit progress in the unit list
 
-Design review: **21 October 2026**.
+Completed after approval: **22 October 2026**.
 
-- Add a personal status marker to each unit: 🟢 for completed, 🟡 for started but incomplete, and a neutral marker or no marker for unstarted units, to be agreed.
-- Define completion as every word in a nonempty unit being mastered, rather than 100% answer accuracy. A unit is started once the student has attempted at least one word.
-- Use the signed-in student's saved progress only. Empty units must not appear completed, and adding new unmastered vocabulary should update the status.
-- Keep the existing mastery rule unless a separate change is approved: at least 10 correct answers with at least 2/3 accuracy.
+- Unit buttons show personal progress: 🟢 completed, 🟡 started but incomplete, ⚪ unstarted. Empty units show ⚪ with an `(empty)` suffix.
+- Completion means every word in a nonempty unit is mastered, rather than 100% answer accuracy. A unit is started once the student has attempted at least one word, including an incorrect answer.
+- Statuses are calculated from the signed-in student's saved results when opening `/units` or returning with Back. Adding unmastered vocabulary updates a completed unit to 🟡; opening the list preserves the active game and results.
+- Authorization is required. The existing mastery rule remains at least 10 correct answers with at least 2/3 accuracy; no new tables or persisted status fields are needed.
 
 ### 3. Simplify word statistics
 
@@ -65,5 +65,6 @@ Not scheduled; depends on agreeing the statistics display in item 3.
 - Cleared active games and selected units on authorization reset, while preserving student records, learning results and attempt limits.
 - Used Web Crypto for new student access codes, preserving existing codes and bindings.
 - Served practice words in shuffled rounds without consecutive repeats while alternatives remain.
+- Added personal unit progress markers based on saved learning results.
 
 Track the next task in a focused GitHub issue, implement it on a branch and describe the resulting behavior and checks in a pull request.

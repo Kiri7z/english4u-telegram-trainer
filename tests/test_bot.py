@@ -69,6 +69,119 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                 word=f'word{i}', translation=f'translation{i}') for i in range(count))
             session.commit()
 
+    async def unit_buttons(self):
+        await units.show_units(self.update, self.context)
+        markup = self.message.reply_text.call_args.kwargs['reply_markup']
+        return {row[0].callback_data: row[0].text for row in markup.inline_keyboard}
+
+    async def test_unit_list_shows_complete_started_unstarted_and_empty(self):
+        with self.sessions() as session:
+            session.add_all([
+                Unit(unit_id=2, unit_name='Completed unit'),
+                Unit(unit_id=3, unit_name='Unstarted unit'),
+                Unit(unit_id=4, unit_name='Empty unit'),
+                Word(word_id=3, unit_id=2, word='done', translation='done'),
+                Word(word_id=4, unit_id=3, word='new', translation='new'),
+                Result(student_id=1, unit_id=2, word_id=3, requests=15, answers=10),
+            ])
+            session.commit()
+        self.assertEqual(await self.unit_buttons(), {
+            'unit_1': '🟡 Example unit', 'unit_2': '🟢 Completed unit',
+            'unit_3': '⚪ Unstarted unit', 'unit_4': '⚪ Empty unit (empty)',
+        })
+
+    async def test_unit_status_uses_exact_mastery_threshold(self):
+        with self.sessions() as session:
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=15, answers=10))
+            session.commit()
+        for requests, answers, marker in ((15,10,'🟢'), (16,10,'🟡'),
+                                          (9,9,'🟡'), (30,20,'🟢')):
+            with self.subTest(requests=requests, answers=answers):
+                with self.sessions() as session:
+                    result = session.query(Result).filter_by(word_id=2).one()
+                    result.requests, result.answers = requests, answers
+                    session.commit()
+                self.assertEqual((await self.unit_buttons())['unit_1'], marker + ' Example unit')
+
+    async def test_incorrect_attempt_starts_unit_but_zero_attempts_do_not(self):
+        with self.sessions() as session:
+            session.query(Result).delete()
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=0, answers=0))
+            session.commit()
+        self.assertEqual((await self.unit_buttons())['unit_1'], '⚪ Example unit')
+        with self.sessions() as session:
+            session.query(Result).one().requests = 1
+            session.commit()
+        self.assertEqual((await self.unit_buttons())['unit_1'], '🟡 Example unit')
+
+    async def test_unit_progress_is_personal_to_each_student(self):
+        with self.sessions() as session:
+            session.add(Student(student_id=2, name='Second example', token='second-code',
+                                telegram_user_id=200))
+            session.add_all(Result(student_id=2, unit_id=1, word_id=word_id,
+                                   requests=10, answers=10) for word_id in (1,2))
+            session.commit()
+        self.assertEqual((await self.unit_buttons())['unit_1'], '🟡 Example unit')
+        self.message.from_user.id = 200
+        self.assertEqual((await self.unit_buttons())['unit_1'], '🟢 Example unit')
+        self.message.from_user.id = 100
+        self.assertEqual((await self.unit_buttons())['unit_1'], '🟡 Example unit')
+
+    async def test_adding_word_changes_completed_unit_to_started(self):
+        with self.sessions() as session:
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=10, answers=10))
+            session.commit()
+        self.assertEqual((await self.unit_buttons())['unit_1'], '🟢 Example unit')
+        self.add_practice_words(1)
+        self.assertEqual((await self.unit_buttons())['unit_1'], '🟡 Example unit')
+
+    async def test_unit_list_requires_authorization(self):
+        for user_id in (200,100):
+            with self.subTest(user_id=user_id):
+                self.message.from_user.id = user_id
+                if user_id == 100:
+                    with self.sessions() as session:
+                        session.get(Student,1).telegram_user_id = None
+                        session.commit()
+                await units.show_units(self.update, self.context)
+                self.assertIn('/start', self.message.reply_text.call_args.args[0])
+                self.assertNotIn('reply_markup', self.message.reply_text.call_args.kwargs)
+
+    async def test_back_button_shows_personal_unit_status(self):
+        self.update.callback_query = SimpleNamespace(answer=AsyncMock())
+        await words.back_to_units_callback(self.update, self.context)
+        self.update.callback_query.answer.assert_awaited_once()
+        markup = self.message.reply_text.call_args.kwargs['reply_markup']
+        self.assertEqual(markup.inline_keyboard[0][0].text, '🟡 Example unit')
+        self.assertEqual(markup.inline_keyboard[0][0].callback_data, 'unit_1')
+
+    async def test_viewing_unit_status_preserves_game_and_results(self):
+        self.add_practice_words(2)
+        await game.run_current_game(self.update,self.context)
+        state = game.game_state[100]
+        question = state['current_word']
+        queue = list(state['round_queue'])
+        with self.sessions() as session:
+            before = [(r.result_id,r.requests,r.answers) for r in session.query(Result)]
+        await self.unit_buttons()
+        self.assertIs(game.game_state[100],state)
+        self.assertIs(state['current_word'],question)
+        self.assertEqual(state['round_queue'],queue)
+        self.assertEqual(self.context.user_data['selected_unit'],1)
+        with self.sessions() as session:
+            self.assertEqual([(r.result_id,r.requests,r.answers) for r in session.query(Result)],before)
+            self.assertEqual(session.get(Student,1).telegram_user_id,100)
+
+    async def test_unit_list_handles_no_units(self):
+        with self.sessions() as session:
+            session.query(Result).delete()
+            session.query(Word).delete()
+            session.query(Unit).delete()
+            session.commit()
+        await units.show_units(self.update,self.context)
+        self.assertEqual(self.message.reply_text.call_args.args[0],'No units available yet.')
+        self.assertNotIn('reply_markup',self.message.reply_text.call_args.kwargs)
+
     async def test_shuffled_rounds_cover_every_remaining_word_once(self):
         self.add_practice_words(9)
         expected = set(range(2, 12))

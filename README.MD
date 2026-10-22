@@ -15,6 +15,7 @@ A Telegram vocabulary trainer with a small teacher panel built with Flask and Po
 - A word is mastered after **at least 10 correct answers and at least 2/3 accuracy** and then leaves the practice queue.
 - `/words` shows vocabulary and progress without losing the current question. `/stop` ends the game.
 - Learning results are stored in PostgreSQL; the current question is held in memory.
+- Unit buttons show personal progress: 🟢 completed, 🟡 started, ⚪ unstarted; empty units are labelled `(empty)`.
 
 ## A look at the app
 
@@ -88,7 +89,7 @@ The SQL contains vocabulary only, with no students or access codes. For HTTPS, p
 | Command | Purpose |
 | --- | --- |
 | `/start` | Show the guide or enter an access code. |
-| `/units` | Choose a vocabulary unit. |
+| `/units` | Choose a vocabulary unit with your saved progress status. |
 | `/run` | Practise the selected unit; its Run button does the same. |
 | `/words` | Show the active unit without interrupting the question. |
 | `/stop` | Stop the current game. |

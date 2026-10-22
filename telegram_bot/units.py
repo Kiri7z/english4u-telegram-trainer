@@ -2,23 +2,54 @@
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import sessionmaker
-from models import Unit
+from models import Unit, Word, Student, Result
 from db_config import engine
+from game import MASTERED_ANSWERS
 from words import show_words
 
 Session = sessionmaker(bind=engine)
 
 async def show_units(update: Update, context: CallbackContext) -> None:
-    session = Session()
-    units = session.query(Unit).all()
-    session.close()
+    with Session() as session:
+        student = session.query(Student).filter_by(
+            telegram_user_id=update.effective_user.id).first()
+        if student is not None:
+            progress = session.query(
+                Unit.unit_id, Unit.unit_name,
+                func.count(Word.word_id).label('total'),
+                func.sum(case((Result.requests > 0, 1), else_=0)).label('attempted'),
+                func.sum(case((and_(
+                    Result.answers >= MASTERED_ANSWERS,
+                    Result.answers * 3 >= Result.requests * 2,
+                ), 1), else_=0)).label('mastered'),
+            ).outerjoin(Word, Word.unit_id == Unit.unit_id).outerjoin(Result, and_(
+                Result.word_id == Word.word_id,
+                Result.unit_id == Unit.unit_id,
+                Result.student_id == student.student_id,
+            )).group_by(Unit.unit_id, Unit.unit_name).order_by(Unit.unit_id).all()
 
-    # Создаем кнопки для каждого Unit
-    keyboard = [[InlineKeyboardButton(unit.unit_name, callback_data=f'unit_{unit.unit_id}')] for unit in units]
+    if student is None:
+        await update.effective_message.reply_text(
+            'You are not authorized. Please use /start to log in.')
+        return
+    if not progress:
+        await update.effective_message.reply_text('No units available yet.')
+        return
+
+    keyboard = []
+    for unit in progress:
+        if unit.total and unit.mastered == unit.total:
+            marker = '🟢'
+        elif unit.attempted:
+            marker = '🟡'
+        else:
+            marker = '⚪'
+        label = f'{marker} {unit.unit_name}' + (' (empty)' if not unit.total else '')
+        keyboard.append([InlineKeyboardButton(label, callback_data=f'unit_{unit.unit_id}')])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Используем update.effective_message для отправки сообщения
     await update.effective_message.reply_text('Choose a Unit:', reply_markup=reply_markup)
 
 async def handle_unit_selection(update: Update, context: CallbackContext) -> None:
