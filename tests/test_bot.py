@@ -493,6 +493,114 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         await game.run_current_game(self.update, self.context)
         self.assertIn(100, game.game_state)
 
+    def test_latin_accent_normalization_preserves_other_spelling(self):
+        for plain, accented in [('fiance', 'fiancé'), ('fiancee', 'fiance\u0301e'),
+                                ('cafe', 'café'), ('resume', 'résumé')]:
+            self.assertEqual(game.normalize_answer(plain), game.normalize_answer(accented))
+        self.assertNotEqual(game.normalize_answer('fiance'), game.normalize_answer('fiancée'))
+        self.assertNotEqual(game.normalize_answer('й'), game.normalize_answer('и'))
+        self.assertNotEqual(game.normalize_answer('well-known'), game.normalize_answer('wellknown'))
+
+    async def test_unaccented_answer_records_correct_result(self):
+        with self.sessions() as session:
+            session.query(Word).filter_by(word_id=2).one().word = 'fiancée'
+            session.commit()
+        await game.start_game(self.query, self.context, 1)
+        self.message.text = 'FIANCEE!'
+        await game.check_answer(self.update, self.context)
+        with self.sessions() as session:
+            result = session.query(Result).filter_by(word_id=2).one()
+            self.assertEqual((result.requests, result.answers), (1, 1))
+            self.assertEqual(session.get(Word, 2).word, 'fiancée')
+
+    async def test_words_and_stats_show_separate_content(self):
+        await words.show_current_words(self.update, self.context)
+        vocabulary = self.message.reply_text.call_args.args[0]
+        self.assertIn('already: mastered', vocabulary)
+        self.assertIn('hello: greeting', vocabulary)
+        self.assertNotIn('✅', vocabulary)
+        self.assertNotIn('(A-', vocabulary)
+        await words.show_current_stats(self.update, self.context)
+        statistics = self.message.reply_text.call_args.args[0]
+        self.assertIn('already - ✅', statistics)
+        self.assertIn('hello', statistics)
+        self.assertNotIn(': mastered', statistics)
+        self.assertNotIn('greeting', statistics)
+        with self.sessions() as session:
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=4, answers=2))
+            session.commit()
+        await words.show_current_stats(self.update, self.context)
+        self.assertIn('hello - 0.50 (A-2)', self.message.reply_text.call_args.args[0])
+
+    async def test_stats_preserves_game_queue_and_personal_results(self):
+        self.add_practice_words(2)
+        await game.start_game(self.query, self.context, 1)
+        state = game.game_state[100]
+        question, queue = state['current_word'], list(state['round_queue'])
+        await words.show_current_stats(self.update, self.context)
+        self.assertIs(state['current_word'], question)
+        self.assertEqual(state['round_queue'], queue)
+        self.assertIn('Back to the game', self.message.reply_text.call_args.args[0])
+        with self.sessions() as session:
+            self.assertEqual(session.query(Result).count(), 1)
+        self.message.from_user.id = 200
+        await words.show_current_stats(self.update, self.context)
+        self.assertIn('not authorized', self.message.reply_text.call_args.args[0])
+
+    async def test_unit_view_buttons_and_callbacks_preserve_active_game(self):
+        await game.start_game(self.query, self.context, 1)
+        state = game.game_state[100]
+        self.update.callback_query = SimpleNamespace(
+            answer=AsyncMock(), data='stats_unit_1', message=self.message,
+            from_user=self.message.from_user)
+        await words.unit_view_callback(self.update, self.context)
+        self.assertIs(game.game_state[100], state)
+        buttons = self.message.reply_text.call_args.kwargs['reply_markup'].inline_keyboard
+        self.assertEqual([b.text for b in buttons[0]], ['Words', 'Stats'])
+        self.assertEqual([b.callback_data for b in buttons[0]], ['words_unit_1', 'stats_unit_1'])
+        self.assertIn('already - ✅', self.message.reply_text.call_args_list[-2].args[0])
+        self.update.callback_query.data = 'words_unit_1'
+        await words.unit_view_callback(self.update, self.context)
+        self.assertIn('already: mastered', self.message.reply_text.call_args_list[-2].args[0])
+        self.assertIs(game.game_state[100], state)
+
+    async def test_views_handle_missing_selection_empty_and_deleted_unit(self):
+        self.context.user_data.clear()
+        await words.show_current_stats(self.update, self.context)
+        self.assertIn('/units', self.message.reply_text.call_args.args[0])
+        with self.sessions() as session:
+            session.add(Unit(unit_id=2, unit_name='Empty'))
+            session.commit()
+        self.context.user_data['selected_unit'] = 2
+        await words.show_current_stats(self.update, self.context)
+        self.assertIn('No words', self.message.reply_text.call_args.args[0])
+        self.context.user_data['selected_unit'] = 999
+        await words.show_current_stats(self.update, self.context)
+        self.assertIn('not found', self.message.reply_text.call_args.args[0])
+
+    async def test_stats_do_not_show_another_students_progress(self):
+        with self.sessions() as session:
+            session.add(Student(student_id=2, name='Other', token='other-code', telegram_user_id=200))
+            session.add(Result(student_id=2, unit_id=1, word_id=2, requests=30, answers=20))
+            session.commit()
+        await words.show_current_stats(self.update, self.context)
+        first = self.message.reply_text.call_args.args[0]
+        self.assertIn('already - ✅', first)
+        self.assertNotIn('hello - ✅', first)
+        self.message.from_user.id = 200
+        await words.show_current_stats(self.update, self.context)
+        second = self.message.reply_text.call_args.args[0]
+        self.assertIn('hello - ✅', second)
+        self.assertNotIn('already - ✅', second)
+
+    async def test_vocabulary_html_is_escaped(self):
+        with self.sessions() as session:
+            session.get(Word, 2).word = '<hello>'
+            session.get(Word, 2).translation = 'a & b'
+            session.commit()
+        await words.show_current_words(self.update, self.context)
+        self.assertIn('&lt;hello&gt;: a &amp; b', self.message.reply_text.call_args.args[0])
+
     def test_all_registered_callbacks_are_async(self):
         application = bot.build_application()
         for handlers in application.handlers.values():

@@ -68,7 +68,9 @@ async def handle_unit_selection(update: Update, context: CallbackContext) -> Non
 
     # Вызываем show_words и передаем unit_name
     if unit:
-        await show_words(query, context, unit_id, unit.unit_name, user_id)
+        shown = await show_words(query, context, unit_id, unit.unit_name, user_id)
+        if shown:
+            context.user_data['selected_unit'] = unit_id
 
 # Handlers
 units_handler = CommandHandler('units', show_units)

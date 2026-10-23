@@ -35,11 +35,10 @@ Not scheduled; agree on the display separately.
 
 ### 4. Separate Words and Stats
 
-Not scheduled; depends on agreeing the statistics display in item 3.
+Completed after approval: **24 October 2026**. Statistics formatting remains unchanged pending item 3.
 
-- Keep Words focused on vocabulary only: `firmly: крепко`, `on time: вовремя`, `be prepared: быть готовым`.
-- Add a separate Stats view containing the English word and its progress, without translations: for example `firmly — ✅`, `on time — 🟡 6 correct`. Examples are provisional.
-- Agree on the buttons and whether to add `/stats`; keep `/words` for vocabulary. Switching views must not count an answer, advance the game or lose its current question.
+- Words shows only English words and translations. Stats shows English words and the existing score/mastery display without translations.
+- Added Words/Stats buttons and `/stats`; commands use the active or selected unit. Opening either view preserves the current question, queue and results.
 
 ## Other planned work
 
@@ -66,5 +65,7 @@ Not scheduled; depends on agreeing the statistics display in item 3.
 - Used Web Crypto for new student access codes, preserving existing codes and bindings.
 - Served practice words in shuffled rounds without consecutive repeats while alternatives remain.
 - Added personal unit progress markers based on saved learning results.
+- Accepted unaccented Latin answers while preserving the original vocabulary spelling.
+- Separated vocabulary and statistics views, and shortened command descriptions.
 
 Track the next task in a focused GitHub issue, implement it on a branch and describe the resulting behavior and checks in a pull request.

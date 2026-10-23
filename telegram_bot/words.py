@@ -15,90 +15,98 @@ MASTERED_ANSWERS = 10
 def is_mastered(answers, requests):
     return answers >= MASTERED_ANSWERS and answers * 3 >= requests * 2
 
-async def show_words(query, context: CallbackContext, unit_id, unit_name, user_id, show_actions=True) -> bool:
-    session = Session()
-    student = session.query(Student).filter_by(telegram_user_id=user_id).first()
+async def show_words(query, context: CallbackContext, unit_id, unit_name, user_id,
+                     show_actions=True, stats=False) -> bool:
+    from html import escape
 
-    if student:
-        words = session.query(Word).filter_by(unit_id=unit_id).all()
-        if words:
-            # Добавляем название юнита перед списком слов
-            words_list = [f"📘 <b>{unit_name}</b>"]  # Название юнита в формате с рамкой (используем HTML-форматирование)
-            
-            for word in words:
-                result = session.execute(text(f"""
-                    SELECT score, answers, requests FROM results_view
-                    WHERE student_id = :student_id AND word_id = :word_id
-                """), {'student_id': student.student_id, 'word_id': word.word_id}).fetchone()
-
-                if result and result.score is not None:
-                    if is_mastered(result.answers, result.requests):
-                        words_list.append(f"{word.word}: {word.translation} - ✅")
-                    else:
-                        words_list.append(f"{word.word}: {word.translation} - {result.score:.2f} (A-{result.answers})")
+    with Session() as session:
+        student = session.query(Student).filter_by(telegram_user_id=user_id).first()
+        lines = []
+        if student:
+            vocabulary = session.query(Word).filter_by(unit_id=unit_id).order_by(Word.word_id).all()
+            lines = [f"📘 <b>{escape(unit_name)}</b>"]
+            for word in vocabulary:
+                if stats:
+                    result = session.execute(text("""
+                        SELECT score, answers, requests FROM results_view
+                        WHERE student_id = :student_id AND word_id = :word_id
+                    """), {'student_id': student.student_id,
+                           'word_id': word.word_id}).fetchone()
+                    suffix = ''
+                    if result and result.score is not None:
+                        suffix = (' - ✅' if is_mastered(result.answers, result.requests)
+                                  else f" - {result.score:.2f} (A-{result.answers})")
+                    lines.append(f"{escape(word.word)}{suffix}")
                 else:
-                    words_list.append(f"{word.word}: {word.translation}")
-            
-            # Отправляем список слов с названием юнита вверху
-            await query.message.reply_text('\n'.join(words_list), parse_mode='HTML')
-        else:
-            await query.message.reply_text('No words found for this unit.')
+                    lines.append(f"{escape(word.word)}: {escape(word.translation)}")
 
-        if show_actions:
-            # Добавляем кнопки Back и Run
-            keyboard = [
-                [InlineKeyboardButton("Back", callback_data='back_units')],
-                [InlineKeyboardButton("Run", callback_data=f'run_game_{unit_id}')]  # Передаем unit_id в callback_data
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.message.reply_text('Choose an action:', reply_markup=reply_markup)
-
-        session.close()
-        return True
-    else:
+    if student is None:
         await query.message.reply_text('You are not authorized. Please use /start to log in.')
+        return False
+    if vocabulary:
+        await query.message.reply_text('\n'.join(lines), parse_mode='HTML')
+    else:
+        await query.message.reply_text('No words found for this unit.')
+    if show_actions:
+        keyboard = [
+            [InlineKeyboardButton('Words', callback_data=f'words_unit_{unit_id}'),
+             InlineKeyboardButton('Stats', callback_data=f'stats_unit_{unit_id}')],
+            [InlineKeyboardButton('Back', callback_data='back_units')],
+            [InlineKeyboardButton('Run', callback_data=f'run_game_{unit_id}')],
+        ]
+        await query.message.reply_text('Choose an action:',
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+    return True
 
-    session.close()
-    return False
 
-
-async def show_current_words(update: Update, context: CallbackContext) -> None:
-    """Show words for the active game without interrupting its current question."""
+async def show_current_view(update: Update, context: CallbackContext, stats=False) -> None:
+    """Show the active or selected unit, preserving the current question and queue."""
     from game import game_state
+    from types import SimpleNamespace
 
     user_id = update.effective_user.id
     state = game_state.get(user_id)
-
-    if not state:
-        await update.effective_message.reply_text(
-            "No game is currently running. Choose a unit with /units first."
-        )
+    unit_id = state['unit_id'] if state else context.user_data.get('selected_unit')
+    if unit_id is None:
+        await update.effective_message.reply_text('Choose a unit with /units first.')
         return
-
-    session = Session()
-    unit = session.query(Unit).filter_by(unit_id=state['unit_id']).first()
-    session.close()
-
-    if not unit:
+    with Session() as session:
+        unit = session.query(Unit).filter_by(unit_id=unit_id).first()
+    if unit is None:
         await update.effective_message.reply_text(
-            "The current unit was not found. Choose it again with /units."
-        )
+            'The current unit was not found. Choose it again with /units.')
         return
-
     shown = await show_words(
-        update,
-        context,
-        unit.unit_id,
-        unit.unit_name,
-        user_id,
-        show_actions=False,
-    )
-
-    current_word = state.get('current_word')
+        SimpleNamespace(message=update.effective_message), context,
+        unit.unit_id, unit.unit_name, user_id, show_actions=False, stats=stats)
+    current_word = state.get('current_word') if state else None
     if shown and current_word:
         await update.effective_message.reply_text(
-            f"Back to the game:\nTranslate:\n🖌 {current_word.translation}"
-        )
+            f"Back to the game:\nTranslate:\n🖌 {current_word.translation}")
+
+
+async def show_current_words(update: Update, context: CallbackContext) -> None:
+    await show_current_view(update, context)
+
+
+async def show_current_stats(update: Update, context: CallbackContext) -> None:
+    await show_current_view(update, context, stats=True)
+
+
+async def unit_view_callback(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    await query.answer()
+    unit_id = int(query.data.rsplit('_', 1)[1])
+    with Session() as session:
+        unit = session.query(Unit).filter_by(unit_id=unit_id).first()
+    if unit is None:
+        await query.message.reply_text('Unit not found. Choose a unit with /units.')
+        return
+    shown = await show_words(query, context, unit.unit_id, unit.unit_name,
+                             query.from_user.id, stats=query.data.startswith('stats_'))
+    if shown:
+        context.user_data['selected_unit'] = unit_id
+
 
 # Обработчик для кнопки "Back"
 async def back_to_units_callback(update: Update, context: CallbackContext) -> None:
@@ -124,5 +132,7 @@ async def run_game_callback(update: Update, context: CallbackContext) -> None:
 
 # Handlers
 words_handler = CommandHandler('words', show_current_words)
+stats_handler = CommandHandler('stats', show_current_stats)
+unit_view_handler = CallbackQueryHandler(unit_view_callback, pattern=r'^(words|stats)_unit_[0-9]+$')
 back_units_handler = CallbackQueryHandler(back_to_units_callback, pattern='^back_units$')
 run_game_handler = CallbackQueryHandler(run_game_callback, pattern='^run_game_')

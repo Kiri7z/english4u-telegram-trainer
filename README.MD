@@ -13,7 +13,7 @@ A Telegram vocabulary trainer with a small teacher panel built with Flask and Po
 - Incorrect answers show the correct word. Correct answers build progress.
 - Practice covers every remaining word once per shuffled round, avoiding consecutive repeats while alternatives remain.
 - A word is mastered after **at least 10 correct answers and at least 2/3 accuracy** and then leaves the practice queue.
-- `/words` shows vocabulary and progress without losing the current question. `/stop` ends the game.
+- `/words` shows words and translations; `/stats` shows English words and personal statistics. Both preserve the current question. `/stop` ends the game.
 - Learning results are stored in PostgreSQL; the current question is held in memory.
 - Unit buttons show personal progress: 🟢 completed, 🟡 started, ⚪ unstarted; empty units are labelled `(empty)`.
 
@@ -91,8 +91,9 @@ The SQL contains vocabulary only, with no students or access codes. For HTTPS, p
 | `/start` | Show the guide or enter an access code. |
 | `/units` | Choose a vocabulary unit with your saved progress status. |
 | `/run` | Practise the selected unit; its Run button does the same. |
-| `/words` | Show the active unit without interrupting the question. |
-| `/stop` | Stop the current game. |
+| `/words` | Show words and translations for the active or selected unit. |
+| `/stats` | Show English words and personal statistics for that unit. |
+| `/stop` | Stop the game. |
 | `/reset` | End the current game, clear its selected unit and remove your Telegram binding; learning results stay saved. |
 
 ## Development and checks
@@ -119,3 +120,19 @@ The next work is tracked in the [roadmap](docs/roadmap.md). Changes use focused 
 ## License
 
 [MIT](LICENSE).
+
+### BotFather command menu
+
+Use this list with BotFather's `/setcommands`:
+
+```text
+start - Help and sign in
+units - Choose a unit
+words - Show words
+stats - Show word stats
+run - Start the game
+stop - Stop the game
+reset - Sign out
+```
+
+Words and Stats buttons are also available after selecting a unit. Views do not count an answer or advance a game. Unaccented Latin input such as `fiancee` is accepted for `fiancée`; displayed vocabulary remains unchanged.

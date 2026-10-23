@@ -8,6 +8,7 @@ from models import Word, Result, Student, Unit
 from db_config import engine
 import random
 import string  # Для работы с пунктуацией
+import unicodedata
 
 Session = sessionmaker(bind=engine)
 
@@ -17,6 +18,21 @@ MASTERED_ANSWERS = 10
 def is_mastered(answers, requests):
     """A word is mastered after 10 correct answers with at least 2/3 accuracy."""
     return answers >= MASTERED_ANSWERS and answers * 3 >= requests * 2
+
+def normalize_answer(value):
+    """Accept unaccented Latin letters without changing non-Latin spelling."""
+    letters = []
+    latin = False
+    for character in unicodedata.normalize('NFD', value.strip().lower()):
+        if unicodedata.combining(character):
+            if not latin:
+                letters.append(character)
+        else:
+            latin = 'LATIN' in unicodedata.name(character, '')
+            letters.append(character)
+    translator = str.maketrans('', '', string.punctuation.replace('-', ''))
+    return unicodedata.normalize('NFC', ''.join(letters)).translate(translator)
+
 
 # Глобальный словарь для хранения состояния игры пользователей
 game_state = {}
@@ -133,17 +149,8 @@ async def check_answer(update: Update, context: CallbackContext) -> None:
     state = game_state[user_id]
     current_word = state['current_word']
 
-    # Форматируем ответ пользователя и слово из БД для сравнения
-    user_answer = update.message.text.strip().lower()
-    correct_answer = current_word.word.strip().lower()
-
-    # Создаем набор знаков препинания без дефиса
-    punctuation_without_hyphen = string.punctuation.replace('-', '')
-
-    # Удаляем знаки препинания (кроме дефиса) из обоих ответов
-    translator = str.maketrans('', '', punctuation_without_hyphen)
-    user_answer_clean = user_answer.translate(translator)
-    correct_answer_clean = correct_answer.translate(translator)
+    user_answer_clean = normalize_answer(update.message.text)
+    correct_answer_clean = normalize_answer(current_word.word)
 
     # Увеличиваем requests в таблице Result
     result = session.query(Result).filter_by(student_id=student.student_id, word_id=current_word.word_id).first()
