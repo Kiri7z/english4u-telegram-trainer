@@ -15,6 +15,22 @@ MASTERED_ANSWERS = 10
 def is_mastered(answers, requests):
     return answers >= MASTERED_ANSWERS and answers * 3 >= requests * 2
 
+def format_stats(answers, requests):
+    """Present accuracy separately from the unchanged mastery rule."""
+    if not requests:
+        return 'No attempts'
+    if is_mastered(answers, requests):
+        marker = '✅'
+    elif answers * 2 < requests:
+        marker = '🟥'
+    elif answers * 4 < requests * 3:
+        marker = '🟨🟨'
+    else:
+        marker = '🟩🟩🟩'
+    percent = round(answers * 100 / requests)
+    return f'{answers}/{requests} · {marker} · {percent}%'
+
+
 async def show_words(query, context: CallbackContext, unit_id, unit_name, user_id,
                      show_actions=True, stats=False) -> bool:
     from html import escape
@@ -28,15 +44,12 @@ async def show_words(query, context: CallbackContext, unit_id, unit_name, user_i
             for word in vocabulary:
                 if stats:
                     result = session.execute(text("""
-                        SELECT score, answers, requests FROM results_view
+                        SELECT answers, requests FROM results_view
                         WHERE student_id = :student_id AND word_id = :word_id
                     """), {'student_id': student.student_id,
                            'word_id': word.word_id}).fetchone()
-                    suffix = ''
-                    if result and result.score is not None:
-                        suffix = (' - ✅' if is_mastered(result.answers, result.requests)
-                                  else f" - {result.score:.2f} (A-{result.answers})")
-                    lines.append(f"{escape(word.word)}{suffix}")
+                    summary = format_stats(result.answers, result.requests) if result else 'No attempts'
+                    lines.append(f"{escape(word.word)} — {summary}")
                 else:
                     lines.append(f"{escape(word.word)}: {escape(word.translation)}")
 

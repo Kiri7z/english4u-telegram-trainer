@@ -136,3 +136,5 @@ reset - Sign out
 ```
 
 After selecting a unit or stopping a game, a full-width 📊 Stats button appears above ⬅️ Back and ▶️ Run in one row. Use `/words` to reopen vocabulary. Views do not count an answer or advance a game. Unaccented Latin input such as `fiancee` is accepted for `fiancée`; displayed vocabulary remains unchanged.
+
+Stats uses `word — correct/attempts · marker · accuracy%`. Accuracy is rounded to a whole percentage; markers use the exact ratio: 🟥 below 50%, 🟨🟨 from 50% to below 75%, 🟩🟩🟩 from 75%. ✅ replaces cubes once the word is mastered (at least 10 correct answers and at least 2/3 accuracy). Words with no attempts show `No attempts`. These are display changes only.

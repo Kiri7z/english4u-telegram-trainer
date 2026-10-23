@@ -26,18 +26,17 @@ Completed after approval: **22 October 2026**.
 
 ### 3. Simplify word statistics
 
-Not scheduled; agree on the display separately.
+Completed after approval: **24 October 2026**.
 
-- Replace decimal scores and `(A-6)` with a short, understandable counter and status, for example `on time — 🟡 6 correct`; the wording (`correct`, `answers`, or `points`) remains undecided. Do not introduce a new scoring system implicitly.
-- Review red/yellow/green bands around 50% and 75%. First decide whether the percentage means answer accuracy or progress towards the required correct-answer count; these are different measurements. Agree on the exact boundaries, including 50%, and the display before any attempts.
-- Keep ✅ for mastered words. Distinguish presentation thresholds from the existing mastery rule; do not change learning rules without explicit approval.
-- Use emoji markers such as 🔴 🟡 🟢 rather than promising arbitrary text colors in standard Telegram messages; see [Telegram formatting options](https://core.telegram.org/bots/api#html-style).
+- Stats displays `word — correct/attempts · marker · accuracy%`, with accuracy rounded to a whole percent.
+- Markers use exact accuracy: 🟥 below 50%, 🟨🟨 from 50% to below 75%, 🟩🟩🟩 from 75%. Mastered words show ✅ instead of cubes; no attempts shows `No attempts`.
+- Accuracy and mastery remain separate: 1/1 is 100% accuracy but not mastered. The mastery rule stays at least 10 correct answers and at least 2/3 accuracy. Existing counters and learning behavior are unchanged.
 
 ### 4. Separate Words and Stats
 
-Completed after approval: **24 October 2026**. Statistics formatting remains unchanged pending item 3.
+Completed after approval: **24 October 2026**. Statistics formatting is documented in item 3.
 
-- Words shows only English words and translations. Stats shows English words and the existing score/mastery display without translations.
+- Words shows only English words and translations. Stats shows English words and accuracy and mastery markers without translations.
 - Added a full-width 📊 Stats button above ⬅️ Back and ▶️ Run in one row, plus `/stats` and `/words`; commands use the active or selected unit. Opening either view preserves the current question, queue and results.
 
 ## Other planned work

@@ -522,7 +522,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('(A-', vocabulary)
         await words.show_current_stats(self.update, self.context)
         statistics = self.message.reply_text.call_args.args[0]
-        self.assertIn('already - ✅', statistics)
+        self.assertIn('already — 10/15 · ✅ · 67%', statistics)
         self.assertIn('hello', statistics)
         self.assertNotIn(': mastered', statistics)
         self.assertNotIn('greeting', statistics)
@@ -530,7 +530,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             session.add(Result(student_id=1, unit_id=1, word_id=2, requests=4, answers=2))
             session.commit()
         await words.show_current_stats(self.update, self.context)
-        self.assertIn('hello - 0.50 (A-2)', self.message.reply_text.call_args.args[0])
+        self.assertIn('hello — 2/4 · 🟨🟨 · 50%', self.message.reply_text.call_args.args[0])
 
     async def test_stats_preserves_game_queue_and_personal_results(self):
         self.add_practice_words(2)
@@ -560,7 +560,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                          [['📊 Stats'], ['⬅️ Back', '▶️ Run']])
         self.assertEqual([[b.callback_data for b in row] for row in buttons],
                          [['stats_unit_1'], ['back_units', 'run_game_1']])
-        self.assertIn('already - ✅', self.message.reply_text.call_args_list[-2].args[0])
+        self.assertIn('already — 10/15 · ✅ · 67%', self.message.reply_text.call_args_list[-2].args[0])
         self.update.callback_query.data = 'words_unit_1'
         await words.unit_view_callback(self.update, self.context)
         self.assertIn('already: mastered', self.message.reply_text.call_args_list[-2].args[0])
@@ -587,13 +587,13 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             session.commit()
         await words.show_current_stats(self.update, self.context)
         first = self.message.reply_text.call_args.args[0]
-        self.assertIn('already - ✅', first)
-        self.assertNotIn('hello - ✅', first)
+        self.assertIn('already — 10/15 · ✅ · 67%', first)
+        self.assertIn('hello — No attempts', first)
         self.message.from_user.id = 200
         await words.show_current_stats(self.update, self.context)
         second = self.message.reply_text.call_args.args[0]
-        self.assertIn('hello - ✅', second)
-        self.assertNotIn('already - ✅', second)
+        self.assertIn('hello — 20/30 · ✅ · 67%', second)
+        self.assertIn('already — No attempts', second)
 
     async def test_vocabulary_html_is_escaped(self):
         with self.sessions() as session:
@@ -602,6 +602,32 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             session.commit()
         await words.show_current_words(self.update, self.context)
         self.assertIn('&lt;hello&gt;: a &amp; b', self.message.reply_text.call_args.args[0])
+
+    def test_stats_accuracy_bands_and_mastery_are_distinct(self):
+        examples = [
+            (0, 0, 'No attempts'),
+            (0, 5, '0/5 · 🟥 · 0%'),
+            (2, 5, '2/5 · 🟥 · 40%'),
+            (1, 2, '1/2 · 🟨🟨 · 50%'),
+            (6, 9, '6/9 · 🟨🟨 · 67%'),
+            (74, 100, '74/100 · ✅ · 74%'),
+            (3, 4, '3/4 · 🟩🟩🟩 · 75%'),
+            (8, 10, '8/10 · 🟩🟩🟩 · 80%'),
+            (1, 1, '1/1 · 🟩🟩🟩 · 100%'),
+            (10, 16, '10/16 · 🟨🟨 · 62%'),
+            (10, 15, '10/15 · ✅ · 67%'),
+            (10, 12, '10/12 · ✅ · 83%'),
+        ]
+        for answers, attempts, expected in examples:
+            with self.subTest(answers=answers, attempts=attempts):
+                self.assertEqual(words.format_stats(answers, attempts), expected)
+
+    async def test_stats_zero_attempt_row_and_no_result_show_no_attempts(self):
+        with self.sessions() as session:
+            session.add(Result(student_id=1, unit_id=1, word_id=2, requests=0, answers=0))
+            session.commit()
+        await words.show_current_stats(self.update, self.context)
+        self.assertIn('hello — No attempts', self.message.reply_text.call_args.args[0])
 
     def test_all_registered_callbacks_are_async(self):
         application = bot.build_application()
