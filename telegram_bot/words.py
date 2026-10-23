@@ -49,10 +49,9 @@ async def show_words(query, context: CallbackContext, unit_id, unit_name, user_i
         await query.message.reply_text('No words found for this unit.')
     if show_actions:
         keyboard = [
-            [InlineKeyboardButton('Words', callback_data=f'words_unit_{unit_id}'),
-             InlineKeyboardButton('Stats', callback_data=f'stats_unit_{unit_id}')],
-            [InlineKeyboardButton('Back', callback_data='back_units')],
-            [InlineKeyboardButton('Run', callback_data=f'run_game_{unit_id}')],
+            [InlineKeyboardButton('📊 Stats', callback_data=f'stats_unit_{unit_id}')],
+            [InlineKeyboardButton('⬅️ Back', callback_data='back_units'),
+             InlineKeyboardButton('▶️ Run', callback_data=f'run_game_{unit_id}')],
         ]
         await query.message.reply_text('Choose an action:',
                                        reply_markup=InlineKeyboardMarkup(keyboard))

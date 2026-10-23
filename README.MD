@@ -135,4 +135,4 @@ stop - Stop the game
 reset - Sign out
 ```
 
-Words and Stats buttons are also available after selecting a unit. Views do not count an answer or advance a game. Unaccented Latin input such as `fiancee` is accepted for `fiancée`; displayed vocabulary remains unchanged.
+After selecting a unit or stopping a game, a full-width 📊 Stats button appears above ⬅️ Back and ▶️ Run in one row. Use `/words` to reopen vocabulary. Views do not count an answer or advance a game. Unaccented Latin input such as `fiancee` is accepted for `fiancée`; displayed vocabulary remains unchanged.

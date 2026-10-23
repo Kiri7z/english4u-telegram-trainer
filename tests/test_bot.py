@@ -556,8 +556,10 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         await words.unit_view_callback(self.update, self.context)
         self.assertIs(game.game_state[100], state)
         buttons = self.message.reply_text.call_args.kwargs['reply_markup'].inline_keyboard
-        self.assertEqual([b.text for b in buttons[0]], ['Words', 'Stats'])
-        self.assertEqual([b.callback_data for b in buttons[0]], ['words_unit_1', 'stats_unit_1'])
+        self.assertEqual([[b.text for b in row] for row in buttons],
+                         [['📊 Stats'], ['⬅️ Back', '▶️ Run']])
+        self.assertEqual([[b.callback_data for b in row] for row in buttons],
+                         [['stats_unit_1'], ['back_units', 'run_game_1']])
         self.assertIn('already - ✅', self.message.reply_text.call_args_list[-2].args[0])
         self.update.callback_query.data = 'words_unit_1'
         await words.unit_view_callback(self.update, self.context)

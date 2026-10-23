@@ -38,7 +38,7 @@ Not scheduled; agree on the display separately.
 Completed after approval: **24 October 2026**. Statistics formatting remains unchanged pending item 3.
 
 - Words shows only English words and translations. Stats shows English words and the existing score/mastery display without translations.
-- Added Words/Stats buttons and `/stats`; commands use the active or selected unit. Opening either view preserves the current question, queue and results.
+- Added a full-width 📊 Stats button above ⬅️ Back and ▶️ Run in one row, plus `/stats` and `/words`; commands use the active or selected unit. Opening either view preserves the current question, queue and results.
 
 ## Other planned work
 
